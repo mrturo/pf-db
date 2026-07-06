@@ -151,7 +151,8 @@ local-up-test: db-up schema-apply seed-test ## Full local bootstrap with test fi
 local-up-real: db-up migrate seed-real ## Full local bootstrap using Alembic migrations (CI-equivalent)
 
 .PHONY: local-down
-local-down: adminer-down db-down ## Tear down the full local stack (DB + Adminer)
+local-down: adminer-down ## Tear down the full local stack (DB + Adminer)
+	-$(COMPOSE) down
 
 .PHONY: local-restart
 local-restart: local-down local-up ## Restart local stack with base seed
@@ -167,7 +168,7 @@ local-restart-real: local-down local-up-real ## Restart local stack using Alembi
 # ---------------------------------------------------------------------------
 .PHONY: adminer-up
 adminer-up: db-up ## Start Adminer (starts DB first; auto-selects a free host port)
-	@$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true; \
+	@$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true; \
 	port=$$($(_find_adminer_port)); \
 	$(NERDCTL) run -d \
 	  --name pf-db-adminer-1 \
@@ -180,11 +181,11 @@ adminer-up: db-up ## Start Adminer (starts DB first; auto-selects a free host po
 
 .PHONY: adminer-down
 adminer-down: ## Stop and remove the Adminer container
-	$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true
+	$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true
 
 .PHONY: adminer-restart
 adminer-restart: ## Restart Adminer without touching the DB (auto-selects a free host port)
-	@$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true; \
+	@$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true; \
 	port=$$($(_find_adminer_port)); \
 	$(NERDCTL) run -d \
 	  --name pf-db-adminer-1 \

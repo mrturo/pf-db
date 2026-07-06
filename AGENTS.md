@@ -16,7 +16,8 @@ pf-db/
 ├── db/
 │   ├── 01_schema.sql              # idempotent DDL reference (do NOT run in production)
 │   ├── 02_seed_base.sql           # base seed: currencies, institutions, caps, brackets, concepts
-│   └── 03_seed_test.sql           # test fixtures: plans, insurance providers/plans
+│   ├── 03_seed_test.sql           # test fixtures: plans, insurance providers/plans
+│   └── 04_seed_real.sql           # production-realistic data
 ├── alembic.ini
 ├── docker-compose.yml             # postgres:16, port ${PF_DB_PORT:-5432}
 ├── Makefile
@@ -38,6 +39,11 @@ Any service may read any table.
 ```bash
 make local-up          # db-up + schema-apply + seed-base (full bootstrap)
 make local-up-test     # db-up + schema-apply + seed-test (with test fixtures)
+make local-up-real     # db-up + migrate + seed-real (CI-equivalent bootstrap)
+make local-down        # tear down full local stack (DB + Adminer)
+make local-restart     # local-down + local-up (base seed)
+make local-restart-test  # local-down + local-up-test (test fixtures)
+make local-restart-real  # local-down + local-up-real (Alembic migrations)
 
 make db-up             # start postgres:16 container
 make db-down           # stop container
@@ -51,6 +57,7 @@ make env-write         # write .env from .env.example (does not overwrite existi
 make schema-apply      # apply db/01_schema.sql via docker exec (local dev only)
 make seed-base         # load base seeds
 make seed-test         # load base + test fixtures
+make seed-real         # load production-realistic data (runs seed-base first)
 
 make adminer-up        # start Adminer UI (starts DB first)
 make adminer-down      # stop and remove the Adminer container
@@ -74,6 +81,7 @@ or: `PATH=.venv/bin:$PATH make <target>`.
 |---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://pf:pf@localhost:5432/pf` | Connection for Alembic and seed targets |
 | `PF_DB_PORT` | `5432` | Host port exposed by docker-compose |
+| `PIP_ARTIFACTORY` | *(unset)* | Pip index URL for `make install`/`reinstall`; set to Walmart Artifactory URL when on VPN |
 
 **During migration coexistence** (while the old per-project containers are still running),
 set in your local `.env`:
