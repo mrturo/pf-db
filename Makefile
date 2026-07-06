@@ -71,12 +71,17 @@ db-reset: ## Destroy volume and restart fresh (DESTROYS ALL DATA)
 # Setup
 # ---------------------------------------------------------------------------
 .PHONY: install
-install: ## Install Python dependencies into the active virtualenv
-	pip install -e ".[dev]"
+install: ## Install Python dependencies (Corporative Artifactory on VPN, PyPI otherwise)
+	@_pip_log=$$(mktemp); \
+	if [ -n "$(PIP_ARTIFACTORY)" ] && PIP_RETRIES=0 pip install -i "$(PIP_ARTIFACTORY)" -e ".[dev]" >"$$_pip_log" 2>&1; then \
+	  cat "$$_pip_log"; \
+	else \
+	  pip install -e ".[dev]"; \
+	fi; \
+	rm -f "$$_pip_log"
 
 .PHONY: reinstall
-reinstall: clean ## Wipe caches and reinstall all dependencies
-	pip install -e ".[dev]"
+reinstall: clean install ## Wipe caches and reinstall all dependencies (Corporative Artifactory on VPN, PyPI otherwise)
 
 .PHONY: clean
 clean: ## Remove build artifacts and caches
