@@ -15,11 +15,35 @@ ifneq (,$(wildcard .env))
     export
 endif
 
-# DB container name (from docker-compose service "db")
+# DB container name (from compose service "db")
 DB_CONTAINER  := pf-db-db-1
 DB_NAME       := pf
 DB_USER       := pf
 ADMINER_PORT  ?= 8080
+# QEMU monitor socket path (Rancher Desktop / Lima on macOS)
+QMP_SOCK      ?= $(HOME)/Library/Application Support/rancher-desktop/lima/0/qmp.sock
+# Register a host→VM port forward in QEMU via QMP. Silently ignored if already set or unsupported.
+# Usage in recipe: $(_qmp_hostfwd) PORT
+_qmp_hostfwd   = printf '{"execute":"qmp_capabilities"}\n{"execute":"human-monitor-command","arguments":{"command-line":"hostfwd_add tcp:127.0.0.1:%d-:%d"}}\n'
+
+# Auto-detect container CLI: prefer nerdctl (containerd) over docker (moby).
+# On macOS Rancher Desktop, nerdctl forwards ports to localhost; moby does not.
+# Override with: make NERDCTL=docker <target>
+NERDCTL ?= $(shell \
+  if nerdctl info >/dev/null 2>&1; then \
+    echo nerdctl; \
+  elif $$HOME/.rd/bin/nerdctl info >/dev/null 2>&1; then \
+    echo $$HOME/.rd/bin/nerdctl; \
+  elif $$HOME/.rd/bin/nerdctl --address /var/run/docker/containerd/containerd.sock info >/dev/null 2>&1; then \
+    echo "$$HOME/.rd/bin/nerdctl --address /var/run/docker/containerd/containerd.sock"; \
+  else \
+    echo docker; \
+  fi)
+COMPOSE := $(NERDCTL) compose
+
+# Finds first free host port for Adminer by querying the active runtime for
+# allocated ports, then verifying with socket bind.
+_find_adminer_port = python3 -c $$'import subprocess,socket,shlex\ndef ps(cmd):\n  return subprocess.run(cmd,capture_output=True,text=True).stdout\nout=ps(shlex.split("$(NERDCTL)")+["ps","--format","{{.Ports}}"])+ps(["docker","ps","--format","{{.Ports}}"])\nused={int(x.split("->")[0].split(":")[-1]) for ln in out.splitlines() for x in ln.split(",") if "->" in x and ":" in x.split("->")[0]}\nfor p in range($(ADMINER_PORT),$(ADMINER_PORT)+200):\n  if p in used:continue\n  s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\n  try:\n    s.bind(("127.0.0.1",p));s.close();print(p);break\n  except OSError:\n    s.close()'
 
 # PostgreSQL connection string for psql targets (strips asyncpg driver prefix)
 PSQL_URL := $(subst postgresql+asyncpg://,postgresql://,$(DATABASE_URL))
@@ -29,17 +53,18 @@ PSQL_URL := $(subst postgresql+asyncpg://,postgresql://,$(DATABASE_URL))
 # ---------------------------------------------------------------------------
 .PHONY: db-up
 db-up: ## Start the PostgreSQL container (idempotent)
-	docker compose up -d db
+	$(COMPOSE) up -d db
 	@echo "Waiting for PostgreSQL to be ready..."
-	@docker compose exec db sh -c 'until pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done'
+	@$(COMPOSE) exec db sh -c 'until pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done'
+	@$(_qmp_hostfwd) $(PF_DB_PORT) $(PF_DB_PORT) | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true
 
 .PHONY: db-down
 db-down: ## Stop and remove the PostgreSQL container
-	docker compose down
+	$(COMPOSE) down
 
 .PHONY: db-reset
 db-reset: ## Destroy volume and restart fresh (DESTROYS ALL DATA)
-	docker compose down -v
+	$(COMPOSE) down -v
 	$(MAKE) db-up
 
 # ---------------------------------------------------------------------------
@@ -48,6 +73,16 @@ db-reset: ## Destroy volume and restart fresh (DESTROYS ALL DATA)
 .PHONY: install
 install: ## Install Python dependencies into the active virtualenv
 	pip install -e ".[dev]"
+
+.PHONY: reinstall
+reinstall: clean ## Wipe caches and reinstall all dependencies
+	pip install -e ".[dev]"
+
+.PHONY: clean
+clean: ## Remove build artifacts and caches
+	rm -rf .ruff_cache build dist
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+	find . -type d -name "*.egg-info" -prune -exec rm -rf {} +
 
 .PHONY: env-write
 env-write: ## Write .env from .env.example (does not overwrite existing)
@@ -58,7 +93,7 @@ env-write: ## Write .env from .env.example (does not overwrite existing)
 # ---------------------------------------------------------------------------
 .PHONY: schema-apply
 schema-apply: ## Apply combined DDL schema via docker exec (local dev only)
-	docker compose exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/01_schema.sql
+	$(COMPOSE) exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/01_schema.sql
 	@echo "Schema applied."
 
 # ---------------------------------------------------------------------------
@@ -85,13 +120,18 @@ stamp: ## Stamp the existing DB at head without re-running migrations
 # ---------------------------------------------------------------------------
 .PHONY: seed-base
 seed-base: ## Load base seed data (safe for all environments)
-	docker compose exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/02_seed_base.sql
+	$(COMPOSE) exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/02_seed_base.sql
 	@echo "Base seed applied."
 
 .PHONY: seed-test
 seed-test: seed-base ## Load test fixtures (runs seed-base first)
-	docker compose exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/03_seed_test.sql
+	$(COMPOSE) exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/03_seed_test.sql
 	@echo "Test seed applied."
+
+.PHONY: seed-real
+seed-real: seed-base ## Load production-realistic data (runs seed-base first)
+	$(COMPOSE) exec -T db psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < db/04_seed_real.sql
+	@echo "Real seed applied."
 
 # ---------------------------------------------------------------------------
 # Local bootstrap (shortcut: db-up + schema + base seed)
@@ -102,23 +142,53 @@ local-up: db-up schema-apply seed-base ## Full local bootstrap: start DB, apply 
 .PHONY: local-up-test
 local-up-test: db-up schema-apply seed-test ## Full local bootstrap with test fixtures
 
+.PHONY: local-up-real
+local-up-real: db-up migrate seed-real ## Full local bootstrap using Alembic migrations (CI-equivalent)
+
+.PHONY: local-down
+local-down: adminer-down db-down ## Tear down the full local stack (DB + Adminer)
+
+.PHONY: local-restart
+local-restart: local-down local-up ## Restart local stack with base seed
+
+.PHONY: local-restart-test
+local-restart-test: local-down local-up-test ## Restart local stack with test fixtures
+
+.PHONY: local-restart-real
+local-restart-real: local-down local-up-real ## Restart local stack using Alembic migrations
+
 # ---------------------------------------------------------------------------
 # Adminer
 # ---------------------------------------------------------------------------
 .PHONY: adminer-up
-adminer-up: db-up ## Start Adminer (starts DB first)
-	docker compose up -d adminer
-	@echo "Adminer → http://localhost:$(ADMINER_PORT)"
+adminer-up: db-up ## Start Adminer (starts DB first; auto-selects a free host port)
+	@$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true; \
+	port=$$($(_find_adminer_port)); \
+	$(NERDCTL) run -d \
+	  --name pf-db-adminer-1 \
+	  --network pf-db_default \
+	  -p $$port:8080 \
+	  -e ADMINER_DEFAULT_SERVER=db \
+	  adminer; \
+	$(_qmp_hostfwd) $$port $$port | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true; \
+	echo "Adminer → http://localhost:$$port"
 
 .PHONY: adminer-down
 adminer-down: ## Stop and remove the Adminer container
-	docker compose rm -sf adminer
+	$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true
 
 .PHONY: adminer-restart
-adminer-restart: ## Restart Adminer without touching the DB
-	docker compose rm -sf adminer
-	docker compose up -d adminer
-	@echo "Adminer → http://localhost:$(ADMINER_PORT)"
+adminer-restart: ## Restart Adminer without touching the DB (auto-selects a free host port)
+	@$(NERDCTL) rm -f pf-db-adminer-1 2>/dev/null || true; \
+	port=$$($(_find_adminer_port)); \
+	$(NERDCTL) run -d \
+	  --name pf-db-adminer-1 \
+	  --network pf-db_default \
+	  -p $$port:8080 \
+	  -e ADMINER_DEFAULT_SERVER=db \
+	  adminer; \
+	$(_qmp_hostfwd) $$port $$port | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true; \
+	echo "Adminer → http://localhost:$$port"
 
 # ---------------------------------------------------------------------------
 # Quality
