@@ -1,17 +1,17 @@
 -- ============================================================
--- Combined idempotent DDL for the unified pf database.
+-- Combined idempotent DDL for the PF database.
 -- Owned by pf-db; do NOT run this file directly in production.
 -- Use Alembic migrations instead: make migrate
 --
 -- Sections:
---   1. Financial rates     (owned by pf-rates)
---   2. Reference data      (owned by pf-payroll)
---   3. Payroll core        (owned by pf-payroll)
---   4. Analytics           (owned by pf-payroll)
+--   1. Financial rates     (financial rates domain)
+--   2. Reference data      (payroll domain)
+--   3. Payroll core        (payroll domain)
+--   4. Analytics           (payroll domain)
 -- ============================================================
 
 -- ============================================================
--- 1. Financial rates (pf-rates)
+-- 1. Financial rates
 -- ============================================================
 CREATE TABLE IF NOT EXISTS currencies (
     code      CHAR(3)     PRIMARY KEY,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS income_tax_brackets (
 );
 
 -- ============================================================
--- 2. Reference data — pension & health institutions (pf-payroll)
+-- 2. Reference data — pension & health institutions
 -- ============================================================
 DO $$ BEGIN
     CREATE TYPE health_institution_kind AS ENUM ('fonasa', 'isapre');
@@ -142,7 +142,7 @@ CREATE TABLE IF NOT EXISTS complementary_insurance_plans (
 );
 
 -- ============================================================
--- 3. Payroll core (pf-payroll)
+-- 3. Payroll core
 -- ============================================================
 DO $$ BEGIN
     CREATE TYPE payroll_status AS ENUM ('projected', 'actual', 'reviewed');
@@ -248,7 +248,7 @@ CREATE INDEX IF NOT EXISTS idx_payroll_items_period_id  ON payroll_items(period_
 CREATE INDEX IF NOT EXISTS idx_payroll_items_concept_id ON payroll_items(concept_id);
 
 -- ============================================================
--- 4. Analytics (pf-payroll)
+-- 4. Analytics
 -- ============================================================
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_payroll_summary AS
 SELECT

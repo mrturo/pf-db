@@ -16,7 +16,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """Create all tables owned by pf-rates."""
+    """Create all financial rates tables."""
     op.execute("""
         CREATE TABLE IF NOT EXISTS currencies (
             code      CHAR(3)     PRIMARY KEY,
@@ -73,7 +73,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop all tables owned by pf-rates."""
+    """Drop all financial rates tables."""
     op.execute("DROP TABLE IF EXISTS income_tax_brackets")
     op.execute("DROP TABLE IF EXISTS economic_indices")
     op.execute("DROP TABLE IF EXISTS exchange_rates")

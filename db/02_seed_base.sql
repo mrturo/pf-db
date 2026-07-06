@@ -4,7 +4,7 @@
 -- ============================================================
 
 -- ============================================================
--- 1. Currencies and index units (pf-rates)
+-- 1. Currencies and index units
 -- ============================================================
 INSERT INTO currencies (code, name, is_fiat, unit_kind) VALUES
     ('CLP', 'Peso chileno',              TRUE,  'currency'),
@@ -19,7 +19,7 @@ SET
     unit_kind = EXCLUDED.unit_kind;
 
 -- ============================================================
--- 2. Pension institutions (pf-payroll)
+-- 2. Pension institutions
 -- ============================================================
 INSERT INTO pension_institutions (code, name, mandatory_rate, is_active) VALUES
     ('AFP_CAPITAL',  'AFP Capital',  0.10, FALSE),
@@ -36,7 +36,7 @@ SET
     is_active      = EXCLUDED.is_active;
 
 -- ============================================================
--- 3. Health institutions (pf-payroll)
+-- 3. Health institutions
 -- ============================================================
 INSERT INTO health_institutions (code, name, kind, mandatory_rate, is_active) VALUES
     ('FONASA',       'Fonasa',        'fonasa', 0.07, FALSE),
@@ -55,7 +55,7 @@ SET
     is_active      = EXCLUDED.is_active;
 
 -- ============================================================
--- 4. Contribution caps (pf-payroll)
+-- 4. Contribution caps
 -- ============================================================
 INSERT INTO contribution_caps (cap_type, valid_from, valid_to, value_uf) VALUES
     ('pension_health', DATE '2018-01-01', NULL, 90.0600),
@@ -66,7 +66,7 @@ SET
     value_uf = EXCLUDED.value_uf;
 
 -- ============================================================
--- 5. Income tax brackets (pf-rates / shared reference)
+-- 5. Income tax brackets
 -- ============================================================
 INSERT INTO income_tax_brackets (
     valid_from, valid_to, lower_bound_utm, upper_bound_utm, marginal_rate, rebate_utm
@@ -87,7 +87,7 @@ SET
     rebate_utm      = EXCLUDED.rebate_utm;
 
 -- ============================================================
--- 6. Payroll concepts (pf-payroll)
+-- 6. Payroll concepts
 -- ============================================================
 INSERT INTO payroll_concepts (code, name, kind, is_taxable) VALUES
     ('SALARY_BASE',                          'Base Salary',                           'income',   TRUE),

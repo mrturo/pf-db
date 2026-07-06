@@ -14,7 +14,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """Create all tables and types owned by pf-payroll."""
+    """Create all payroll tables and types."""
     # ------------------------------------------------------------------ #
     # Custom enum types                                                    #
     # ------------------------------------------------------------------ #

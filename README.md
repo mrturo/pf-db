@@ -1,16 +1,16 @@
 # pf-db
 
-Centralized PostgreSQL schema and Alembic migrations for the pf ecosystem.
+PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosystem.
 
 ## Overview
 
-`pf-db` is the single source of truth for the database shared by `pf-payroll` and `pf-rates`.
-It owns DDL, migrations, and seeds. It has no application code.
+`pf-db` is the single source of truth for the shared PostgreSQL database used across
+all PF ecosystem services. It owns DDL, migrations, and seeds. It has no application code.
 
 ```
-pf-payroll ──┐
-              ├── PostgreSQL (pf-db) ◄── Alembic migrations (this repo)
-pf-rates   ──┘
+pf-service-a ──┐
+pf-service-b ──┼── PostgreSQL (pf-db) ◄── Alembic migrations (this repo)
+pf-service-n ──┘
 ```
 
 ## Quick start
@@ -46,19 +46,27 @@ DATABASE_URL=postgresql+asyncpg://pf:pf@localhost:5434/pf
 | `make schema-apply` | Apply idempotent DDL via `docker exec` (local only) |
 | `make seed-base` | Load base seed data |
 | `make seed-test` | Load base + test fixtures |
+| `make adminer-up` | Start Adminer UI (starts DB first) |
+| `make adminer-down` | Stop and remove the Adminer container |
+| `make adminer-restart` | Restart Adminer without touching the DB |
 | `make migrate` | `alembic upgrade head` (CI / Cloud Run) |
 | `make rollback` | `alembic downgrade -1` |
 | `make stamp` | Stamp existing DB at head without re-running migrations |
+| `make migration-check` | Fail if there are pending unapplied migrations (CI gate) |
+| `make lint` | Run ruff linter over `alembic/` |
 | `make check` | Lint + migration-check |
+| `make env-write` | Write `.env` from `.env.example` (does not overwrite existing) |
+| `make clean` | Remove build artifacts and caches |
+| `make reinstall` | Wipe caches and reinstall all dependencies |
 
 ## Tables
 
-17 tables across two domains:
+17 tables across all domains:
 
-**Financial rates** (read/written by `pf-rates`):
+**Financial rates**:
 `currencies` · `exchange_rates` · `economic_indices` · `income_tax_brackets`
 
-**Payroll** (read/written by `pf-payroll`):
+**Payroll**:
 `pension_institutions` · `health_institutions` · `pension_plans` · `health_plans` ·
 `contribution_caps` · `complementary_insurance_providers` · `complementary_insurance_plans` ·
 `employers` · `payroll_periods` · `payroll_period_health_plans` ·
@@ -73,13 +81,9 @@ postgresql+asyncpg://pf:pf@localhost:5432/pf
 ```
 
 Set via `DATABASE_URL` environment variable (loaded from `.env` by Alembic).
-Each consuming service uses its own env-var prefix (`PAYROLL_DATABASE_URL`, `FINANCIAL_DATA_DATABASE_URL`).
+Each consuming service sets its own env-var prefix for the connection string.
 
 ## CI
 
 Every PR runs: `alembic upgrade head` → `alembic check` against a fresh postgres:16 container.
 
-## Related repositories
-
-- [`pf-payroll`](../pf-payroll) — Chilean payroll simulation and tax calculation
-- [`pf-rates`](../pf-rates) — Chilean financial reference data (UF, UTM, exchange rates)

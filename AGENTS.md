@@ -1,13 +1,10 @@
 # AGENTS.md — pf-db
 
-Centralized PostgreSQL schema and Alembic migrations for the pf ecosystem.
-**This repo owns DDL and migrations only** — no application code, no HTTP API, no ORM models.
+PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosystem. **This repo owns DDL and migrations only** — no application code, no HTTP API, no ORM models.
 
 ## Purpose
 
-`pf-db` is the single source of truth for all database objects shared by `pf-payroll` and `pf-rates`.
-Both services connect to the same PostgreSQL instance; each service keeps its own SQLAlchemy models
-and repositories.
+`pf-db` is the single source of truth for all database objects shared across PF ecosystem services. All consuming services connect to the same PostgreSQL instance; each service keeps its own SQLAlchemy models and repositories.
 
 ```
 pf-db/
@@ -28,13 +25,13 @@ pf-db/
 
 ## Table ownership
 
-| Tables | Owner service |
+| Tables | Domain |
 |---|---|
-| `currencies`, `exchange_rates`, `economic_indices`, `income_tax_brackets` | `pf-rates` |
-| All others (17 tables total) + `mv_payroll_summary` | `pf-payroll` |
+| `currencies`, `exchange_rates`, `economic_indices`, `income_tax_brackets` | financial rates |
+| All others (17 tables total) + `mv_payroll_summary` | payroll |
 
-Ownership means: only the owning service writes to those tables.
-Both services may read any table.
+Ownership means: only the services that own a domain write to those tables.
+Any service may read any table.
 
 ## Development commands
 
@@ -46,9 +43,18 @@ make db-up             # start postgres:16 container
 make db-down           # stop container
 make db-reset          # destroy volume and restart fresh (DESTROYS ALL DATA)
 
+make install           # install Python dependencies into the active virtualenv
+make reinstall         # wipe caches and reinstall all dependencies
+make clean             # remove build artifacts and caches
+make env-write         # write .env from .env.example (does not overwrite existing)
+
 make schema-apply      # apply db/01_schema.sql via docker exec (local dev only)
 make seed-base         # load base seeds
 make seed-test         # load base + test fixtures
+
+make adminer-up        # start Adminer UI (starts DB first)
+make adminer-down      # stop and remove the Adminer container
+make adminer-restart   # restart Adminer without touching the DB
 
 make migrate           # alembic upgrade head (requires direct DB access; use in CI/Cloud Run)
 make rollback          # alembic downgrade -1
@@ -102,7 +108,7 @@ Alembic migration files are the **authoritative source of truth** for production
 1. **Migrations before traffic** — any Cloud Run deployment that consumes this DB must run
    `alembic upgrade head` before serving traffic. The Cloud Run Job pattern is the reference.
 2. **No application code** — this repo has no `src/`, no FastAPI routes, no business logic.
-   ORM models live in the consuming services (`pf-payroll`, `pf-rates`).
+   ORM models live in the consuming services.
 3. **No autogenerate** — `target_metadata = None` in `alembic/env.py`. Migrations are hand-written raw SQL.
 4. **Idempotent seeds** — all `INSERT` statements in `db/02_seed_base.sql` use `ON CONFLICT DO UPDATE`
    or `ON CONFLICT DO NOTHING`. Running seeds multiple times must be safe.
@@ -112,7 +118,7 @@ Alembic migration files are the **authoritative source of truth** for production
 
 ## Production cutover (from per-service DBs)
 
-When retiring the old `pf-payroll` and `pf-rates` databases:
+When retiring old per-service databases:
 
 ```bash
 # 1. Dump payroll data only (exclude rates tables + alembic_version)
