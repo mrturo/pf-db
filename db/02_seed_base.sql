@@ -85,8 +85,8 @@ SET
 
 DELETE FROM contribution_caps
 WHERE (cap_type, valid_from) NOT IN (
-    VALUES ('pension_health', DATE '2018-01-01'),
-           ('unemployment',   DATE '2018-01-01')
+    VALUES ('pension_health'::contribution_cap_type, DATE '2018-01-01'),
+           ('unemployment'::contribution_cap_type,   DATE '2018-01-01')
 );
 
 -- ============================================================

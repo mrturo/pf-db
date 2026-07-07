@@ -42,7 +42,7 @@ jobs:
           # psql (libpq) needs postgresql:// and sslmode=, not ssl=
           PSQL_URL="${DATABASE_URL/postgresql+asyncpg/postgresql}"
           PSQL_URL="${PSQL_URL/ssl=require/sslmode=require}"
-          psql "$PSQL_URL" -f db/02_seed_base.sql
+          psql "$PSQL_URL" --set ON_ERROR_STOP=1 -f db/02_seed_base.sql
 
       - name: Lint
         run: ruff check alembic/
