@@ -8,6 +8,7 @@ import asyncio
 import os
 from logging.config import fileConfig
 from pathlib import Path
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from alembic import context
 from dotenv import load_dotenv
@@ -27,14 +28,22 @@ target_metadata = None
 
 
 def _database_url() -> str:
-    """Return DATABASE_URL from the environment."""
+    """Return DATABASE_URL from the environment, normalized for asyncpg.
+
+    Strips query parameters that asyncpg does not accept as connect() kwargs
+    (e.g. channel_binding, which Neon may include in its connection strings).
+    """
     url = os.environ.get("DATABASE_URL")
     if not url:
         raise RuntimeError(
             "DATABASE_URL environment variable is not set. "
             "Copy .env.example to .env and set the value."
         )
-    return url
+    # asyncpg does not accept channel_binding as a connect() kwarg; remove it.
+    parsed = urlparse(url)
+    qs = {k: v[0] for k, v in parse_qs(parsed.query, keep_blank_values=True).items()
+          if k != "channel_binding"}
+    return urlunparse(parsed._replace(query=urlencode(qs)))
 
 
 def run_migrations_offline() -> None:
@@ -61,7 +70,7 @@ def do_run_migrations(connection: object) -> None:
 
 async def run_migrations_online() -> None:
     """Run migrations in online mode."""
-    connectable = create_async_engine(_database_url(), channel_binding="disable")
+    connectable = create_async_engine(_database_url())
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
