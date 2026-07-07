@@ -61,7 +61,7 @@ def do_run_migrations(connection: object) -> None:
 
 async def run_migrations_online() -> None:
     """Run migrations in online mode."""
-    connectable = create_async_engine(_database_url())
+    connectable = create_async_engine(_database_url(), channel_binding="disable")
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
