@@ -14,7 +14,7 @@ jobs:
   # check: lint only — safe for PRs, no DB access required
   # ------------------------------------------------------------------
   check:
-    name: Lint
+    name: Check
     runs-on: ubuntu-latest
 
     steps:
@@ -33,16 +33,31 @@ jobs:
         run: make check
 
   # ------------------------------------------------------------------
+  # gate: manual approval before migrating (only on push to main)
+  # Configure required reviewers for the "production" environment in:
+  #   GitHub → Settings → Environments → production → Required reviewers
+  # ------------------------------------------------------------------
+  gate:
+    name: Approval Gate
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Deployment approved
+        run: echo "Manual approval granted — proceeding to migrate."
+
+  # ------------------------------------------------------------------
   # migrate: apply migrations + verify + migration-check + seed
   # Runs only on push to main — never on PRs.
-  # migration-check (alembic check) runs after upgrade so the DB is at
-  # head and the check can verify consistency rather than failing on
-  # the new unapplied revision.
+  # migration-check runs after upgrade so the DB is at head and the
+  # check can verify consistency rather than failing on the new revision.
   # ------------------------------------------------------------------
   migrate:
     name: Migrate & Seed
     runs-on: ubuntu-latest
-    needs: check
+    needs: gate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
