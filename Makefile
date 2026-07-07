@@ -17,8 +17,8 @@ endif
 
 # DB container name (from compose service "db")
 DB_CONTAINER  := pf-db-db-1
-DB_NAME       := pf
-DB_USER       := pf
+DB_NAME       := pf_db
+DB_USER       := pf_db
 ADMINER_PORT  ?= 8080
 # QEMU monitor socket path (Rancher Desktop / Lima on macOS)
 QMP_SOCK      ?= $(HOME)/Library/Application Support/rancher-desktop/lima/0/qmp.sock

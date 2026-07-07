@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: pf
-      POSTGRES_USER: pf
-      POSTGRES_PASSWORD: pf
+      POSTGRES_DB: pf_db
+      POSTGRES_USER: pf_db
+      POSTGRES_PASSWORD: pf_db
     ports:
       # Default host port is 5432. During migration coexistence (while the old
       # per-project containers are still running), override in your local .env:
@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U pf -d pf"]
+      test: ["CMD-SHELL", "pg_isready -U pf_db -d pf_db"]
       interval: 5s
       timeout: 5s
       retries: 10
