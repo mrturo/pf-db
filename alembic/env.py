@@ -70,7 +70,13 @@ def do_run_migrations(connection: object) -> None:
 
 async def run_migrations_online() -> None:
     """Run migrations in online mode."""
-    connectable = create_async_engine(_database_url())
+    url = _database_url()
+    # asyncpg attempts SSL negotiation by default; containers without SSL support
+    # cause a silent timeout. Explicitly disable SSL when the URL does not
+    # configure it (e.g. local dev). Neon/production URLs carry ssl=require.
+    has_ssl = bool(parse_qs(urlparse(url).query).get("ssl"))
+    connect_args = {} if has_ssl else {"ssl": False}
+    connectable = create_async_engine(url, connect_args=connect_args)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

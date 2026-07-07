@@ -22,9 +22,10 @@ DB_USER       := pf_db
 ADMINER_PORT  ?= 8080
 # QEMU monitor socket path (Rancher Desktop / Lima on macOS)
 QMP_SOCK      ?= $(HOME)/Library/Application Support/rancher-desktop/lima/0/qmp.sock
-# Register a host→VM port forward in QEMU via QMP. Silently ignored if already set or unsupported.
-# Usage in recipe: $(_qmp_hostfwd) PORT
-_qmp_hostfwd   = printf '{"execute":"qmp_capabilities"}\n{"execute":"human-monitor-command","arguments":{"command-line":"hostfwd_add tcp:127.0.0.1:%d-:%d"}}\n'
+# Lima SSH config (Rancher Desktop)
+LIMA_DIR      ?= $(HOME)/Library/Application Support/rancher-desktop/lima
+LIMA_KEY      ?= $(LIMA_DIR)/_config/user
+LIMA_YAML     ?= $(LIMA_DIR)/0/lima.yaml
 
 # Auto-detect container CLI: prefer nerdctl (containerd) over docker (moby).
 # On macOS Rancher Desktop, nerdctl forwards ports to localhost; moby does not.
@@ -56,7 +57,26 @@ db-up: ## Start the PostgreSQL container (idempotent)
 	$(COMPOSE) up -d db
 	@echo "Waiting for PostgreSQL to be ready..."
 	@$(COMPOSE) exec db sh -c 'until pg_isready -U $(DB_USER) -d $(DB_NAME); do sleep 1; done'
-	@$(_qmp_hostfwd) $(PF_DB_PORT) $(PF_DB_PORT) | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true
+	@$(MAKE) --no-print-directory _fwd_db_port
+
+# Refresh the host→VM port forward for the DB port.
+# Prefers Lima SSH (Rancher Desktop): kills any stale tunnel and creates a fresh one.
+# Falls back to QMP hostfwd for other QEMU-based setups.
+.PHONY: _fwd_db_port
+_fwd_db_port:
+	@LIMA_KEY="$(LIMA_KEY)"; \
+	LIMA_PORT=$$(grep -m1 'localPort:' "$(LIMA_YAML)" 2>/dev/null | tr -d ' ' | cut -d: -f2); \
+	if [ -f "$$LIMA_KEY" ] && [ -n "$$LIMA_PORT" ]; then \
+	    pkill -f "ssh.*-L $(PF_DB_PORT):127.0.0.1:$(PF_DB_PORT)" 2>/dev/null; \
+	    sleep 0.3; \
+	    ssh -o ControlMaster=no -o StrictHostKeyChecking=no -o BatchMode=yes \
+	        -i "$$LIMA_KEY" -p "$$LIMA_PORT" "$(USER)@127.0.0.1" \
+	        -L "$(PF_DB_PORT):127.0.0.1:$(PF_DB_PORT)" -N -f 2>/dev/null || true; \
+	    sleep 0.3; \
+	else \
+	    printf '{"execute":"qmp_capabilities"}\n{"execute":"human-monitor-command","arguments":{"command-line":"hostfwd_add tcp:127.0.0.1:$(PF_DB_PORT)-:$(PF_DB_PORT)"}}\n' \
+	        | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true; \
+	fi
 
 .PHONY: db-down
 db-down: ## Stop and remove the PostgreSQL container
