@@ -1,7 +1,13 @@
 -- ============================================================
 -- Base seed data — safe for all environments.
 -- Applied via: make seed-base
+--
+-- This file is the authoritative source for all catalog rows.
+-- After upserting, rows NOT present in this file are deleted.
+-- If a FK-dependent child row references a to-be-deleted row,
+-- the entire transaction rolls back with a clear error.
 -- ============================================================
+BEGIN;
 
 -- ============================================================
 -- 1. Currencies and index units
@@ -17,6 +23,8 @@ SET
     name      = EXCLUDED.name,
     is_fiat   = EXCLUDED.is_fiat,
     unit_kind = EXCLUDED.unit_kind;
+
+DELETE FROM currencies WHERE code NOT IN ('CLP', 'USD', 'EUR', 'UF', 'UTM');
 
 -- ============================================================
 -- 2. Pension institutions
@@ -34,6 +42,11 @@ SET
     name           = EXCLUDED.name,
     mandatory_rate = EXCLUDED.mandatory_rate,
     is_active      = EXCLUDED.is_active;
+
+DELETE FROM pension_institutions WHERE code NOT IN (
+    'AFP_CAPITAL', 'AFP_CUPRUM', 'AFP_HABITAT', 'AFP_MODELO',
+    'AFP_PLANVITAL', 'AFP_PROVIDA', 'AFP_UNO'
+);
 
 -- ============================================================
 -- 3. Health institutions
@@ -54,6 +67,11 @@ SET
     mandatory_rate = EXCLUDED.mandatory_rate,
     is_active      = EXCLUDED.is_active;
 
+DELETE FROM health_institutions WHERE code NOT IN (
+    'FONASA', 'BANMEDICA', 'COLMENA', 'CONSALUD',
+    'CRUZBLANCA', 'ESENCIAL', 'NUEVA_MASVIDA', 'VIDA_TRES'
+);
+
 -- ============================================================
 -- 4. Contribution caps
 -- ============================================================
@@ -64,6 +82,12 @@ ON CONFLICT (cap_type, valid_from) DO UPDATE
 SET
     valid_to = EXCLUDED.valid_to,
     value_uf = EXCLUDED.value_uf;
+
+DELETE FROM contribution_caps
+WHERE (cap_type, valid_from) NOT IN (
+    VALUES ('pension_health', DATE '2018-01-01'),
+           ('unemployment',   DATE '2018-01-01')
+);
 
 -- ============================================================
 -- 5. Income tax brackets
@@ -85,6 +109,18 @@ SET
     upper_bound_utm = EXCLUDED.upper_bound_utm,
     marginal_rate   = EXCLUDED.marginal_rate,
     rebate_utm      = EXCLUDED.rebate_utm;
+
+DELETE FROM income_tax_brackets
+WHERE (valid_from, lower_bound_utm) NOT IN (
+    VALUES (DATE '2018-01-01',   0.0000),
+           (DATE '2018-01-01',  13.5000),
+           (DATE '2018-01-01',  30.0000),
+           (DATE '2018-01-01',  50.0000),
+           (DATE '2018-01-01',  70.0000),
+           (DATE '2018-01-01',  90.0000),
+           (DATE '2018-01-01', 120.0000),
+           (DATE '2018-01-01', 310.0000)
+);
 
 -- ============================================================
 -- 6. Payroll concepts
@@ -115,3 +151,16 @@ SET
     name       = EXCLUDED.name,
     kind       = EXCLUDED.kind,
     is_taxable = EXCLUDED.is_taxable;
+
+DELETE FROM payroll_concepts WHERE code NOT IN (
+    'SALARY_BASE', 'LEGAL_GRATUITY', 'TELEWORK_REFUND',
+    'HEALTH_INSURANCE_EMPLOYER_CONTRIBUTION', 'VACATION_INCENTIVE',
+    'HOLIDAY_BONUS', 'AVAILABILITY_BONUS', 'LEGAL_GRATUITY_ADJUSTMENT',
+    'PRIOR_SALARY_DIFFERENCE', 'PENSION_BASE', 'PENSION_ADDITIONAL',
+    'HEALTH_BASE', 'HEALTH_ADDITIONAL_UF', 'HEALTH_INSURANCE',
+    'VACATION_BONUS_ADVANCE', 'HOLIDAY_BONUS_ADVANCE', 'SALARY_ADVANCE',
+    'PRIOR_MONTH_LEAVE_ABSENCE_DISCOUNT', 'UNEMPLOYMENT_INSURANCE',
+    'INCOME_TAX'
+);
+
+COMMIT;
