@@ -29,7 +29,8 @@ jobs:
       - name: Verify DB is at head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: alembic current 2>&1 | grep -q "(head)" || (echo "ERROR: DB is not at head" && exit 1)
+        run: |
+          alembic current 2>&1 | grep -q "(head)" || { echo "ERROR: DB is not at head"; exit 1; }
 
       - name: Lint
         run: ruff check alembic/
