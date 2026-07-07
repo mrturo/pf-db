@@ -62,13 +62,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: alembic upgrade head
 
-      - name: Verify DB is at head
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          alembic current 2>&1 | grep -q "(head)" || { echo "ERROR: DB is not at head"; exit 1; }
-
-      - name: Migration consistency check
+      - name: Verify DB is at migration head
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: make migration-check

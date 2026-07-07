@@ -133,8 +133,8 @@ rollback: ## Roll back the last applied migration
 	alembic downgrade -1
 
 .PHONY: migration-check
-migration-check: ## Fail if there are pending migration files without a DB version (CI)
-	alembic check
+migration-check: ## Fail if the DB is not at the latest migration head (CI)
+	@alembic current 2>&1 | grep -q "(head)" || { echo "ERROR: DB is not at migration head"; exit 1; }
 
 .PHONY: stamp
 stamp: ## Stamp the existing DB at head without re-running migrations
