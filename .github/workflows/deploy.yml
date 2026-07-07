@@ -32,5 +32,16 @@ jobs:
         run: |
           alembic current 2>&1 | grep -q "(head)" || { echo "ERROR: DB is not at head"; exit 1; }
 
+      - name: Install psql client
+        run: sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Seed base data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # psql uses postgresql://, strip asyncpg driver prefix
+          PSQL_URL="${DATABASE_URL/postgresql+asyncpg/postgresql}"
+          psql "$PSQL_URL" -f db/02_seed_base.sql
+
       - name: Lint
         run: ruff check alembic/
