@@ -16,7 +16,7 @@ ifneq (,$(wildcard .env))
 endif
 
 # DB container name (from compose service "db")
-DB_CONTAINER  := pf-db-db-1
+DB_CONTAINER  := pf-db-1
 DB_NAME       := pf_db
 DB_USER       := pf_db
 ADMINER_PORT  ?= 8080
@@ -151,8 +151,7 @@ local-up-test: db-up schema-apply seed-test ## Full local bootstrap with test fi
 local-up-real: db-up migrate seed-real ## Full local bootstrap using Alembic migrations (CI-equivalent)
 
 .PHONY: local-down
-local-down: adminer-down ## Tear down the full local stack (DB + Adminer)
-	-$(COMPOSE) down
+local-down: adminer-down db-down ## Tear down the full local stack (DB + Adminer)
 
 .PHONY: local-restart
 local-restart: local-down local-up ## Restart local stack with base seed
@@ -166,10 +165,11 @@ local-restart-real: local-down local-up-real ## Restart local stack using Alembi
 # ---------------------------------------------------------------------------
 # Adminer
 # ---------------------------------------------------------------------------
-.PHONY: adminer-up
-adminer-up: db-up ## Start Adminer (starts DB first; auto-selects a free host port)
-	@$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true; \
-	port=$$($(_find_adminer_port)); \
+# Private target: launch the Adminer container (assumes DB network exists).
+# Called by adminer-up (after db-up) and adminer-restart (after adminer-down).
+.PHONY: _adminer-launch
+_adminer-launch:
+	@port=$$($(_find_adminer_port)); \
 	$(NERDCTL) run -d \
 	  --name pf-db-adminer-1 \
 	  --network pf-db_default \
@@ -178,23 +178,16 @@ adminer-up: db-up ## Start Adminer (starts DB first; auto-selects a free host po
 	  adminer; \
 	$(_qmp_hostfwd) $$port $$port | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true; \
 	echo "Adminer → http://localhost:$$port"
+
+.PHONY: adminer-up
+adminer-up: db-up adminer-down _adminer-launch ## Start Adminer (starts DB first; auto-selects a free host port)
 
 .PHONY: adminer-down
 adminer-down: ## Stop and remove the Adminer container
 	$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true
 
 .PHONY: adminer-restart
-adminer-restart: ## Restart Adminer without touching the DB (auto-selects a free host port)
-	@$(NERDCTL) rm -f pf-db-adminer-1 >/dev/null 2>&1 || true; \
-	port=$$($(_find_adminer_port)); \
-	$(NERDCTL) run -d \
-	  --name pf-db-adminer-1 \
-	  --network pf-db_default \
-	  -p $$port:8080 \
-	  -e ADMINER_DEFAULT_SERVER=db \
-	  adminer; \
-	$(_qmp_hostfwd) $$port $$port | nc -U "$(QMP_SOCK)" >/dev/null 2>&1 || true; \
-	echo "Adminer → http://localhost:$$port"
+adminer-restart: adminer-down _adminer-launch ## Restart Adminer without touching the DB (auto-selects a free host port)
 
 # ---------------------------------------------------------------------------
 # Quality
