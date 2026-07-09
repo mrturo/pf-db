@@ -1,11 +1,11 @@
 # pf-db
 
-PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosystem.
+PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosystem microservices.
 
 ## Overview
 
-`pf-db` is the single source of truth for the shared PostgreSQL database used across
-all PF ecosystem services. It owns DDL, migrations, and seeds. It has no application code.
+`pf-db` is the single source of truth for all PostgreSQL database objects shared across
+the PF ecosystem microservices. It manages DDL, migrations, and seeds, with no application code.
 
 ```
 pf-service-a ──┐

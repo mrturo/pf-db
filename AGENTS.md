@@ -4,7 +4,7 @@ PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosyste
 
 ## Purpose
 
-`pf-db` is the single source of truth for all database objects shared across PF ecosystem services. All consuming services connect to the same PostgreSQL instance; each service keeps its own SQLAlchemy models and repositories.
+`pf-db` is the single source of truth for all PostgreSQL database objects shared across the PF ecosystem microservices. All consuming microservices connect to the same PostgreSQL instance; each microservices keeps its own SQLAlchemy models and repositories.
 
 ```
 pf-db/
