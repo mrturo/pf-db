@@ -4,7 +4,7 @@ PostgreSQL schema and Alembic migrations for the PF (Personal Finances) ecosyste
 
 ## Purpose
 
-`pf-db` is the single source of truth for all PostgreSQL database objects shared across the PF ecosystem microservices. All consuming microservices connect to the same PostgreSQL instance; each microservices keeps its own SQLAlchemy models and repositories.
+`pf-db` is the single source of truth for all PostgreSQL database objects shared across the PF ecosystem microservices. All consuming microservices connect to the same PostgreSQL instance; each microservice keeps its own SQLAlchemy models and repositories.
 
 ```
 pf-db/
@@ -31,51 +31,19 @@ pf-db/
 | `currencies`, `exchange_rates`, `economic_indices`, `income_tax_brackets` | financial rates |
 | All others (17 tables total) + `mv_payroll_summary` | payroll |
 
-Ownership means: only the services that own a domain write to those tables.
-Any service may read any table.
+Ownership means: only the microservices that own a domain write to those tables.
+Any microservice may read any table.
 
 ## Development commands
 
-```bash
-make local-up          # db-up + schema-apply + seed-base (full bootstrap)
-make local-up-test     # db-up + schema-apply + seed-test (with test fixtures)
-make local-up-real     # db-up + migrate + seed-real (CI-equivalent bootstrap)
-make local-down        # tear down full local stack (DB + Adminer)
-make local-restart     # local-down + local-up (base seed)
-make local-restart-test  # local-down + local-up-test (test fixtures)
-make local-restart-real  # local-down + local-up-real (Alembic migrations)
-
-make db-up             # start postgres:16 container
-make db-down           # stop container
-make db-reset          # destroy volume and restart fresh (DESTROYS ALL DATA)
-
-make install           # install Python dependencies into the active virtualenv
-make reinstall         # wipe caches and reinstall all dependencies
-make clean             # remove build artifacts and caches
-make env-write         # write .env from .env.example (does not overwrite existing)
-
-make schema-apply      # apply db/01_schema.sql via docker exec (local dev only)
-make seed-base         # load base seeds
-make seed-test         # load base + test fixtures
-make seed-real         # load production-realistic data (runs seed-base first)
-
-make adminer-up        # start Adminer UI (starts DB first)
-make adminer-down      # stop and remove the Adminer container
-make adminer-restart   # restart Adminer without touching the DB
-
-make migrate           # alembic upgrade head (requires direct DB access; use in CI/Cloud Run)
-make rollback          # alembic downgrade -1
-make stamp             # alembic stamp head (mark existing DB without re-running migrations)
-make migration-check   # fail if there are pending unapplied migrations (CI gate)
-
-make lint              # ruff check alembic/
-make check             # lint (local); CI additionally runs migration-check
-```
+See [Commands](README.md#commands) in README.md for the full list of `make` targets.
 
 Run from an activated virtualenv: `source .venv/bin/activate && make <target>`
 or: `PATH=.venv/bin:$PATH make <target>`.
 
-## Environment variable
+## Environment variables
+
+See [Connection](README.md#connection) in README.md for the default `DATABASE_URL`.
 
 | Variable | Default | Purpose |
 |---|---|---|
@@ -87,7 +55,7 @@ or: `PATH=.venv/bin:$PATH make <target>`.
 set in your local `.env`:
 ```
 PF_DB_PORT=5434
-DATABASE_URL=postgresql+asyncpg://pf:pf@localhost:5434/pf
+DATABASE_URL=postgresql+asyncpg://pf_db:pf_db@localhost:5434/pf_db
 ```
 Remove once the old containers are stopped.
 
@@ -116,7 +84,7 @@ Alembic migration files are the **authoritative source of truth** for production
 1. **Migrations before traffic** — any Cloud Run deployment that consumes this DB must run
    `alembic upgrade head` before serving traffic. The Cloud Run Job pattern is the reference.
 2. **No application code** — this repo has no `src/`, no FastAPI routes, no business logic.
-   ORM models live in the consuming services.
+   ORM models live in the consuming microservices.
 3. **No autogenerate** — `target_metadata = None` in `alembic/env.py`. Migrations are hand-written raw SQL.
 4. **Idempotent seeds** — all `INSERT` statements in `db/02_seed_base.sql` use `ON CONFLICT DO UPDATE`
    or `ON CONFLICT DO NOTHING`. Running seeds multiple times must be safe.
@@ -153,11 +121,7 @@ Rates data (`exchange_rates`, `economic_indices`) is re-fetchable via provider A
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every PR and push to `main`:
-
-1. Start `postgres:16` service container
-2. `alembic upgrade head` (applies all migrations)
-3. `alembic check` (fails if any migration file has no corresponding DB version)
+See [CI](README.md#ci) in README.md. A manual approval gate is required before migrations execute.
 
 ## Versioning
 

@@ -23,7 +23,7 @@ python -m venv .venv && source .venv/bin/activate
 make install
 
 # 2. Copy env and start
-cp .env.example .env
+make env-write       # creates .env from .env.example (safe to re-run)
 make local-up        # starts postgres, applies schema, loads base seed
 ```
 
@@ -31,7 +31,7 @@ During migration coexistence (while old per-project containers are running on 54
 set in `.env`:
 ```
 PF_DB_PORT=5434
-DATABASE_URL=postgresql+asyncpg://pf:pf@localhost:5434/pf
+DATABASE_URL=postgresql+asyncpg://pf_db:pf_db@localhost:5434/pf_db
 ```
 
 ## Commands
@@ -87,10 +87,28 @@ DATABASE_URL=postgresql+asyncpg://pf:pf@localhost:5434/pf
 postgresql+asyncpg://pf:pf@localhost:5432/pf
 ```
 
-Set via `DATABASE_URL` environment variable (loaded from `.env` by Alembic).
-Each consuming service sets its own env-var prefix for the connection string.
+Set via `DATABASE_URL` in `.env` (loaded automatically by Alembic and seed targets).
+Each consuming microservice sets its own env-var prefix for the connection string.
+
+## Adding a migration
+
+1. Create `alembic/versions/NNNN_description.py` with correct `revision` and `down_revision`.
+2. Implement `upgrade()` and `downgrade()` using raw SQL via `op.execute()`.
+3. `make migrate` to apply; `make rollback` to verify the downgrade.
+4. `make check` must pass clean before committing.
+
+## Invariants
+
+- Migrations always run before traffic (`alembic upgrade head` via Cloud Run Job).
+- No application code: no `src/`, no FastAPI routes, no ORM models in this repo.
+- No autogenerate: `target_metadata = None`; all migrations are hand-written SQL.
+- Seeds are idempotent: all `INSERT` use `ON CONFLICT DO UPDATE` or `ON CONFLICT DO NOTHING`.
+- All monetary/rate columns use `NUMERIC`. Never `FLOAT`.
+- `db/01_schema.sql` is local only — never applied in CI or production.
 
 ## CI
 
-Every PR runs: `alembic upgrade head` → `alembic check` against a fresh postgres:16 container.
+Every PR runs against a fresh `postgres:16` container:
 
+1. `alembic upgrade head` — applies all migrations (requires manual approval)
+2. `alembic check` — fails if any migration file has no corresponding DB version
