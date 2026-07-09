@@ -84,7 +84,7 @@ DATABASE_URL=postgresql+asyncpg://pf_db:pf_db@localhost:5434/pf_db
 ## Connection
 
 ```
-postgresql+asyncpg://pf:pf@localhost:5432/pf
+postgresql+asyncpg://pf_db:pf_db@localhost:5432/pf_db
 ```
 
 Set via `DATABASE_URL` in `.env` (loaded automatically by Alembic and seed targets).
