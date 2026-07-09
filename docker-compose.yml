@@ -6,9 +6,6 @@ services:
       POSTGRES_USER: pf_db
       POSTGRES_PASSWORD: pf_db
     ports:
-      # Default host port is 5432. During migration coexistence (while the old
-      # per-project containers are still running), override in your local .env:
-      #   PF_DB_PORT=5434
       - "${PF_DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data

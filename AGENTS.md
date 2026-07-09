@@ -51,14 +51,6 @@ See [Connection](README.md#connection) in README.md for the default `DATABASE_UR
 | `PF_DB_PORT` | `5432` | Host port exposed by docker-compose |
 | `PIP_ARTIFACTORY` | *(unset)* | Pip index URL for `make install`/`reinstall`; set to Walmart Artifactory URL when on VPN |
 
-**During migration coexistence** (while the old per-project containers are still running),
-set in your local `.env`:
-```
-PF_DB_PORT=5434
-DATABASE_URL=postgresql+asyncpg://pf_db:pf_db@localhost:5434/pf_db
-```
-Remove once the old containers are stopped.
-
 ## Local vs production schema application
 
 | Context | Method |

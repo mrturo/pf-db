@@ -27,13 +27,6 @@ make env-write       # creates .env from .env.example (safe to re-run)
 make local-up        # starts postgres, applies schema, loads base seed
 ```
 
-During migration coexistence (while old per-project containers are running on 5432/5433),
-set in `.env`:
-```
-PF_DB_PORT=5434
-DATABASE_URL=postgresql+asyncpg://pf_db:pf_db@localhost:5434/pf_db
-```
-
 ## Commands
 
 | Command | Description |
