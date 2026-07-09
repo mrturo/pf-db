@@ -34,6 +34,16 @@ pf-db/
 Ownership means: only the microservices that own a domain write to those tables.
 Any microservice may read any table.
 
+## Consuming microservices
+
+| Microservice | Domain | Connection env var | Repo |
+|---|---|---|---|
+| `pf-rates` | financial rates | `FINANCIAL_DATA_DATABASE_URL` | `../pf-rates` |
+| `pf-payroll` | payroll | `PAYROLL_DATABASE_URL` | `../pf-payroll` |
+
+Both services connect to the same PostgreSQL instance managed by this repo.
+Each keeps its own SQLAlchemy ORM models and repositories — no ORM code lives here.
+
 ## Development commands
 
 See [Commands](README.md#commands) in README.md for the full list of `make` targets.
@@ -83,33 +93,6 @@ Alembic migration files are the **authoritative source of truth** for production
 5. **No float columns** — all monetary/rate columns use `NUMERIC`. Never `FLOAT`.
 6. **Schema-apply is local only** — `db/01_schema.sql` is never applied in CI or production.
    Alembic is the production path.
-
-## Production cutover (from per-service DBs)
-
-When retiring old per-service databases:
-
-```bash
-# 1. Dump payroll data only (exclude rates tables + alembic_version)
-pg_dump --data-only \
-  --exclude-table=currencies --exclude-table=exchange_rates \
-  --exclude-table=economic_indices --exclude-table=income_tax_brackets \
-  --exclude-table=alembic_version \
-  $OLD_PAYROLL_DB_URL > payroll_data_only.sql
-
-# 2. Apply pf-db migrations to the target DB
-DATABASE_URL=$PF_DB_URL alembic upgrade head
-
-# 3. Restore payroll data
-psql $PF_DB_URL < payroll_data_only.sql
-
-# 4. Refresh the materialized view
-psql $PF_DB_URL -c "REFRESH MATERIALIZED VIEW mv_payroll_summary;"
-
-# 5. Update both Cloud Run services to point at the new DATABASE_URL
-# 6. Retire the old containers/instances
-```
-
-Rates data (`exchange_rates`, `economic_indices`) is re-fetchable via provider APIs — no dump needed.
 
 ## CI
 
