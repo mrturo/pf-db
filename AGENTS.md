@@ -59,7 +59,7 @@ See [Connection](README.md#connection) in README.md for the default `DATABASE_UR
 |---|---|---|
 | `DATABASE_URL` | `postgresql+asyncpg://pf_db:pf_db@localhost:5432/pf_db` | Connection for Alembic and seed targets |
 | `PF_DB_PORT` | `5432` | Host port exposed by docker-compose |
-| `PIP_ARTIFACTORY` | *(unset)* | Pip index URL for `make install`/`reinstall`; set to Walmart Artifactory URL when on VPN |
+| `PIP_ARTIFACTORY` | *(unset)* | Pip index URL for `make install`/`reinstall`; set to Corporative Artifactory URL when on VPN |
 
 ## Local vs production schema application
 

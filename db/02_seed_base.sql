@@ -90,40 +90,7 @@ WHERE (cap_type, valid_from) NOT IN (
 );
 
 -- ============================================================
--- 5. Income tax brackets
--- ============================================================
-INSERT INTO income_tax_brackets (
-    valid_from, valid_to, lower_bound_utm, upper_bound_utm, marginal_rate, rebate_utm
-) VALUES
-    (DATE '2018-01-01', NULL,    0.0000,   13.5000, 0.000000,  0.0000),
-    (DATE '2018-01-01', NULL,   13.5000,   30.0000, 0.040000,  0.5400),
-    (DATE '2018-01-01', NULL,   30.0000,   50.0000, 0.080000,  1.7400),
-    (DATE '2018-01-01', NULL,   50.0000,   70.0000, 0.135000,  4.4900),
-    (DATE '2018-01-01', NULL,   70.0000,   90.0000, 0.230000, 11.1400),
-    (DATE '2018-01-01', NULL,   90.0000,  120.0000, 0.304000, 17.8000),
-    (DATE '2018-01-01', NULL,  120.0000,  310.0000, 0.350000, 23.3200),
-    (DATE '2018-01-01', NULL,  310.0000,      NULL, 0.400000, 38.8200)
-ON CONFLICT (valid_from, lower_bound_utm) DO UPDATE
-SET
-    valid_to        = EXCLUDED.valid_to,
-    upper_bound_utm = EXCLUDED.upper_bound_utm,
-    marginal_rate   = EXCLUDED.marginal_rate,
-    rebate_utm      = EXCLUDED.rebate_utm;
-
-DELETE FROM income_tax_brackets
-WHERE (valid_from, lower_bound_utm) NOT IN (
-    VALUES (DATE '2018-01-01',   0.0000),
-           (DATE '2018-01-01',  13.5000),
-           (DATE '2018-01-01',  30.0000),
-           (DATE '2018-01-01',  50.0000),
-           (DATE '2018-01-01',  70.0000),
-           (DATE '2018-01-01',  90.0000),
-           (DATE '2018-01-01', 120.0000),
-           (DATE '2018-01-01', 310.0000)
-);
-
--- ============================================================
--- 6. Payroll concepts
+-- 5. Payroll concepts
 -- ============================================================
 INSERT INTO payroll_concepts (code, name, kind, is_taxable) VALUES
     ('SALARY_BASE',                          'Base Salary',                           'income',   TRUE),

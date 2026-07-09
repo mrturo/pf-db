@@ -42,6 +42,15 @@ NERDCTL ?= $(shell \
   fi)
 COMPOSE := $(NERDCTL) compose
 
+# ---------------------------------------------------------------------------
+# Python / venv
+# ---------------------------------------------------------------------------
+PYTHON ?= python3.12
+VENV   := .venv
+PIP    := $(VENV)/bin/pip
+# Use venv ruff when available (local dev); fall back to PATH ruff (CI — no venv)
+RUFF   := $(if $(wildcard $(VENV)/bin/ruff),$(VENV)/bin/ruff,ruff)
+
 # Finds first free host port for Adminer by querying the active runtime for
 # allocated ports, then verifying with socket bind.
 _find_adminer_port = python3 -c $$'import subprocess,socket,shlex\ndef ps(cmd):\n  return subprocess.run(cmd,capture_output=True,text=True).stdout\nout=ps(shlex.split("$(NERDCTL)")+["ps","--format","{{.Ports}}"])+ps(["docker","ps","--format","{{.Ports}}"])\nused={int(x.split("->")[0].split(":")[-1]) for ln in out.splitlines() for x in ln.split(",") if "->" in x and ":" in x.split("->")[0]}\nfor p in range($(ADMINER_PORT),$(ADMINER_PORT)+200):\n  if p in used:continue\n  s=socket.socket();s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)\n  try:\n    s.bind(("127.0.0.1",p));s.close();print(p);break\n  except OSError:\n    s.close()'
@@ -90,13 +99,25 @@ db-reset: ## Destroy volume and restart fresh (DESTROYS ALL DATA)
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
+
+# Create the virtualenv if it does not exist yet.
+# Not .PHONY — Make skips this recipe when .venv/ already exists.
+$(VENV):
+	$(PYTHON) -m venv $(VENV)
+	@echo "Virtualenv created at $(VENV)."
+
 .PHONY: install
-install: ## Install Python dependencies (Corporative Artifactory on VPN, PyPI otherwise)
+install: $(VENV) ## Install Python dependencies (auto-creates .venv; Artifactory on VPN, PyPI otherwise)
 	@_pip_log=$$(mktemp); \
-	if [ -n "$(PIP_ARTIFACTORY)" ] && PIP_RETRIES=0 pip install -i "$(PIP_ARTIFACTORY)" -e ".[dev]" >"$$_pip_log" 2>&1; then \
+	if [ -n "$(PIP_ARTIFACTORY)" ] && PIP_RETRIES=0 $(PIP) install -i "$(PIP_ARTIFACTORY)" -e ".[dev]" >"$$_pip_log" 2>&1; then \
 	  cat "$$_pip_log"; \
+	elif [ -z "$(PIP_ARTIFACTORY)" ]; then \
+	  echo "HINT: On corporate VPN? Set PIP_ARTIFACTORY in .env (see .env.example)."; \
+	  $(PIP) install -e ".[dev]"; \
 	else \
-	  pip install -e ".[dev]"; \
+	  cat "$$_pip_log"; \
+	  echo "ERROR: Artifactory install failed (see above). Check PIP_ARTIFACTORY in .env."; \
+	  rm -f "$$_pip_log"; exit 1; \
 	fi; \
 	rm -f "$$_pip_log"
 
@@ -214,7 +235,8 @@ adminer-restart: adminer-down _adminer-launch ## Restart Adminer without touchin
 # ---------------------------------------------------------------------------
 .PHONY: lint
 lint: ## Run ruff linter over alembic/
-	ruff check alembic/
+	@command -v $(RUFF) >/dev/null 2>&1 || { echo "ERROR: ruff not found. Run: make install"; exit 1; }
+	$(RUFF) check alembic/
 
 .PHONY: check
 check: lint ## Run all quality checks (lint only for local; CI also runs migration-check)
