@@ -18,7 +18,7 @@ WHERE pi.code = 'AFP_PLANVITAL'
   );
 
 -- ============================================================
--- 2. Health plans — FONASA tiers + ISAPRE base plans
+-- 2. Health plans
 -- ============================================================
 INSERT INTO health_plans (institution_id, valid_from, valid_to, plan_name, contracted_uf)
 SELECT hi.id, entry.valid_from, entry.valid_to, entry.plan_name, entry.contracted_uf
@@ -28,7 +28,7 @@ CROSS JOIN (VALUES
     (DATE '2024-11-01', NULL::DATE, 'GES',         0.91::NUMERIC(10,4)),
     (DATE '2024-11-01', NULL::DATE, 'Adicionales', 0.79::NUMERIC(10,4))
 ) AS entry(valid_from, valid_to, plan_name, contracted_uf)
-WHERE hi.code = 'FONASA'
+WHERE hi.code = 'ESENCIAL'
   AND NOT EXISTS (
       SELECT 1
       FROM health_plans hp
