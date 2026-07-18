@@ -94,6 +94,15 @@ jobs:
           PSQL_URL="${PSQL_URL/ssl=require/sslmode=require}"
           psql "$PSQL_URL" --set ON_ERROR_STOP=1 -f db/02_seed_base.sql
 
+      - name: Seed real data (production)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          PSQL_URL="${DATABASE_URL/postgresql+asyncpg/postgresql}"
+          PSQL_URL="${PSQL_URL/ssl=require/sslmode=require}"
+          psql "$PSQL_URL" --set ON_ERROR_STOP=1 -f db/04_seed_real.sql
+
   # ------------------------------------------------------------------
   # notify-failure: email alert when any job fails on push to main.
   # Uses explicit result checks instead of failure() to avoid false
