@@ -38,8 +38,8 @@ Any microservice may read any table.
 
 | Microservice | Domain | Connection env var | Repo |
 |---|---|---|---|
-| `pf-rates` | financial rates | `FINANCIAL_DATA_DATABASE_URL` | `../pf-rates` |
-| `pf-payroll` | payroll | `PAYROLL_DATABASE_URL` | `../pf-payroll` |
+| `pf-rates` | financial rates | `PF_DATABASE_URL` | `../pf-rates` |
+| `pf-payroll` | payroll | `PF_DATABASE_URL` | `../pf-payroll` |
 
 Both services connect to the same PostgreSQL instance managed by this repo.
 Each keeps its own SQLAlchemy ORM models and repositories — no ORM code lives here.
