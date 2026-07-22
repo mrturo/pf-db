@@ -120,6 +120,8 @@ install: $(VENV) ## Install Python dependencies (auto-creates .venv; Artifactory
 	  rm -f "$$_pip_log"; exit 1; \
 	fi; \
 	rm -f "$$_pip_log"
+	git config core.hooksPath .githooks
+	@echo "  ✓ Git hooks configured (.githooks/)"
 
 .PHONY: reinstall
 reinstall: clean install ## Wipe caches and reinstall all dependencies (Corporative Artifactory on VPN, PyPI otherwise)

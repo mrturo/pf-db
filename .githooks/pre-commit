@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# pre-commit: lint
+# Skip in emergencies with: git commit --no-verify
+set -euo pipefail
+
+VENV=".venv"
+if [ ! -d "$VENV" ]; then
+  echo "❌  Virtualenv not found. Run: make install"
+  exit 1
+fi
+export PATH="$VENV/bin:$PATH"
+
+echo "==> [pre-commit] lint"
+ruff check alembic/
+
+echo ""
+echo "✓ pre-commit checks passed"

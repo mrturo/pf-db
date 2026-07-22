@@ -51,6 +51,14 @@ See [Commands](README.md#commands) in README.md for the full list of `make` targ
 Run from an activated virtualenv: `source .venv/bin/activate && make <target>`
 or: `PATH=.venv/bin:$PATH make <target>`.
 
+## Git hooks
+
+Installed automatically by `make install` via `git config core.hooksPath .githooks`:
+
+| Hook | Runs | Bypass |
+|---|---|---|
+| `pre-commit` | lint | `git commit --no-verify` |
+
 ## Environment variables
 
 See [Connection](README.md#connection) in README.md for the default `DATABASE_URL`.
