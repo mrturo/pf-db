@@ -44,6 +44,27 @@ Any microservice may read any table.
 Both services connect to the same PostgreSQL instance managed by this repo.
 Each keeps its own SQLAlchemy ORM models and repositories — no ORM code lives here.
 
+## Language policy
+
+- All code, identifiers, comments, docstrings, and migration files: English
+- Exception: preserve official Chilean regulatory terms/SQL literals/seed data in original language only when translation alters meaning
+
+## Code style
+
+- ruff: `extend-select = ["D", "E", "W", "UP"]`, `pep257` convention
+- Docstrings required for `alembic/env.py` and migration files
+- PEPs: 484 (type hints), 498 (f-strings), 621 (pyproject.toml)
+- Never use `print` — use alembic logger if needed
+
+## Design principles
+
+- Idempotent migrations: all DDL uses `CREATE ... IF NOT EXISTS` or equivalent patterns
+- Idempotent seeds: all `INSERT` use `ON CONFLICT DO UPDATE` or `ON CONFLICT DO NOTHING`
+- Hand-written SQL only — no autogenerate (`target_metadata = None`)
+- Always provide `downgrade()` — never leave it as `pass`
+- Monetary/rate columns: `NUMERIC` only, never `FLOAT`
+- Migrations before traffic: Cloud Run Job applies `alembic upgrade head` before services receive requests
+
 ## Development commands
 
 See [Commands](README.md#commands) in README.md for the full list of `make` targets.
