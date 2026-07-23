@@ -129,5 +129,5 @@ See [CI](README.md#ci) in README.md. A manual approval gate is required before m
 
 ## Versioning
 
-- Conventional Commits (English)
-- Never autonomously commit, push branches, or open PRs — requires explicit user command
+- SemVer; Conventional Commits (English)
+- Never autonomously commit, push branches, create issues, or open PRs — requires explicit user command
